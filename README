@@ -1,0 +1,379 @@
+# ESP32 ↔ Raspberry Pi CoAP IoT Project
+
+## 📌 Overview
+
+This project demonstrates a lightweight IoT communication architecture using **CoAP (Constrained Application Protocol)** instead of HTTP or MQTT.
+
+The system consists of:
+
+* **ESP32** acting as a CoAP Server
+* **Raspberry Pi** acting as a CoAP Client / Gateway
+* Communication over **UDP (Port 5683)** within local WiFi network
+
+The ESP32 exposes REST-style resources such as:
+
+```
+/temp   → Read temperature
+/led    → Control onboard LED
+```
+
+The Raspberry Pi retrieves sensor data and can control actuators without requiring:
+
+* HTTP server
+* MQTT broker
+* Internet connection
+
+---
+
+# 🏗 System Architecture
+
+```
+             WiFi LAN
+    ┌────────────────────────┐
+    │                        │
+    │     Raspberry Pi       │
+    │   (CoAP Client/GW)     │
+    │        ↓               │
+    │   GET /temp            │
+    │   PUT /led             │
+    │                        │
+    └─────────────┬──────────┘
+                  │ UDP 5683
+                  │
+    ┌─────────────▼──────────┐
+    │        ESP32           │
+    │     (CoAP Server)      │
+    │                        │
+    │   DHT22 → /temp        │
+    │   LED   → /led         │
+    └────────────────────────┘
+```
+
+---
+
+# 🎯 Project Objectives
+
+* Demonstrate CoAP-based IoT communication
+* Replace HTTP with a lightweight protocol
+* Avoid MQTT broker dependency
+* Build a small IoT gateway architecture
+* Prepare foundation for smart agriculture or hydroponic system
+
+---
+
+# 🧠 Why CoAP?
+
+| Feature         | HTTP  | MQTT   | CoAP       |
+| --------------- | ----- | ------ | ---------- |
+| Transport       | TCP   | TCP    | UDP        |
+| Header Size     | Large | Medium | Very Small |
+| Broker Required | ❌     | ✅      | ❌          |
+| Power Efficient | ❌     | ⚠️     | ✅          |
+| REST Style      | ✅     | ❌      | ✅          |
+
+CoAP advantages:
+
+* Lightweight (4-byte header)
+* Works well on constrained devices
+* Supports RESTful design
+* Ideal for local IoT networks
+
+---
+
+# 🔧 Hardware Requirements
+
+## ESP32 Node
+
+* ESP32 Development Board
+* DHT22 Temperature Sensor
+* LED (or onboard LED)
+* WiFi Network
+
+## Gateway
+
+* Raspberry Pi (any model with WiFi)
+* Raspberry Pi OS installed
+
+---
+
+# 📦 Software Stack
+
+## ESP32
+
+* Arduino IDE
+* Libraries:
+
+  * CoAP-simple-library
+  * DHT sensor library
+
+## Raspberry Pi
+
+* libcoap2-bin (CLI testing)
+* Python 3
+* aiocoap library
+
+---
+
+# 🚀 Setup Guide
+
+---
+
+# 1️⃣ ESP32 Configuration
+
+## Install Libraries
+
+In Arduino IDE:
+
+* Install `CoAP-simple-library`
+* Install `DHT sensor library`
+
+---
+
+## Upload Code
+
+ESP32 will:
+
+* Connect to WiFi
+* Start CoAP server on port 5683
+* Expose:
+
+  * GET /temp
+  * PUT /led
+
+After uploading, open Serial Monitor to obtain ESP32 IP address.
+
+Example:
+
+```
+192.168.1.50
+```
+
+---
+
+# 2️⃣ Raspberry Pi Setup
+
+## Install CoAP CLI tools
+
+```bash
+sudo apt update
+sudo apt install libcoap2-bin
+```
+
+---
+
+# 🧪 Manual Testing
+
+## Get Temperature
+
+```bash
+coap-client -m get coap://192.168.1.50/temp
+```
+
+Expected output:
+
+```
+25.40
+```
+
+---
+
+## Turn LED ON
+
+```bash
+coap-client -m put -e "ON" coap://192.168.1.50/led
+```
+
+Turn OFF:
+
+```bash
+coap-client -m put -e "OFF" coap://192.168.1.50/led
+```
+
+---
+
+# 🤖 Automated Polling with Python
+
+## Install Python CoAP Library
+
+```bash
+pip3 install aiocoap
+```
+
+---
+
+## Example Python Client
+
+```python
+import asyncio
+from aiocoap import *
+
+ESP32_IP = "192.168.1.50"
+
+async def main():
+    protocol = await Context.create_client_context()
+
+    while True:
+        request = Message(code=GET, uri=f'coap://{ESP32_IP}/temp')
+        response = await protocol.request(request).response
+
+        print("Temperature:", response.payload.decode())
+        await asyncio.sleep(10)
+
+asyncio.run(main())
+```
+
+Run:
+
+```bash
+python3 coap_client.py
+```
+
+---
+
+# 📡 Communication Flow
+
+### Temperature Request
+
+1. Raspberry sends:
+
+   * GET /temp
+2. ESP32 reads DHT22
+3. ESP32 sends temperature value
+4. Raspberry receives and processes
+
+---
+
+### LED Control
+
+1. Raspberry sends:
+
+   * PUT /led
+   * Payload: "ON" or "OFF"
+2. ESP32 toggles LED
+3. ESP32 replies with "OK"
+
+---
+
+# 🔥 Advanced Extensions
+
+This project can be extended to:
+
+### 1️⃣ Add More Sensors
+
+```
+/ph
+/ec
+/waterlevel
+/light
+/pump
+```
+
+---
+
+### 2️⃣ Implement CoAP Observe
+
+Instead of polling every 10 seconds, Raspberry can subscribe:
+
+* ESP32 pushes updates automatically when temperature changes.
+
+---
+
+### 3️⃣ Add Local Database
+
+Raspberry can:
+
+* Store data in SQLite
+* Store in MySQL
+* Visualize via Flask dashboard
+
+---
+
+### 4️⃣ Multi-Node Architecture
+
+```
+ESP32 Node 1
+ESP32 Node 2
+ESP32 Node 3
+        ↓
+    CoAP LAN
+        ↓
+ Raspberry Pi Gateway
+        ↓
+    Database / UI
+```
+
+---
+
+# ⚡ Advantages of This Architecture
+
+* No MQTT broker required
+* Lower memory usage than HTTP
+* Reduced network overhead
+* LAN-based operation (no internet dependency)
+* Ideal for:
+
+  * Smart farm
+  * Hydroponics
+  * Birdhouse monitoring
+  * Smart home
+
+---
+
+# 📊 Performance Notes
+
+* CoAP runs over UDP → lower latency
+* Less RAM usage on ESP32
+* More scalable for internal IoT networks
+* Suitable for battery-powered devices
+
+---
+
+# 🔐 Security Consideration
+
+Current implementation:
+
+* Runs without encryption (local LAN only)
+
+Production upgrade:
+
+* Use CoAPS (CoAP over DTLS)
+* Implement authentication token
+
+---
+
+# 🛠 Future Improvements
+
+* Implement device registration
+* Add firmware update mechanism
+* Add sensor threshold alerts
+* Add web-based dashboard
+* Add data analytics layer
+
+---
+
+# 📚 Learning Outcomes
+
+After completing this project, you will understand:
+
+* CoAP fundamentals
+* UDP-based IoT communication
+* REST-style IoT APIs
+* Gateway architecture design
+* Lightweight IoT protocol comparison
+
+---
+
+# 🧪 Recommended Use Case
+
+This architecture is highly suitable for:
+
+* Smart hydroponic farming
+* Greenhouse monitoring
+* Industrial sensor network
+* Smart birdhouse climate control
+
+---
+
+# 👨‍💻 Author
+
+Developed as a lightweight IoT communication experiment using CoAP for embedded systems.
