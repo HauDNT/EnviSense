@@ -3,8 +3,8 @@
 
 #include <WiFi.h>
 
-const char *ssid = "Wifi";
-const char *password = "haudnt@2003";
+const char *ssid = "Trong Nghia";
+const char *password = "0949496465@";
 
 void connectWifi() {
   WiFi.begin(ssid, password);
@@ -21,8 +21,10 @@ void connectWifi() {
   
   if (WiFi.status() == WL_CONNECTED) {
     Serial.println("\nKết nối đến " + String(ssid) + " thành công!");
+    Serial.println(WiFi.localIP());
   } else {
     Serial.println("\nKết nối Wifi thất bại, vượt quá thời gian!");
+    exit(0);
   }
 }
 
